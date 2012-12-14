@@ -174,6 +174,13 @@ void StaticTree::findBestLocalSplits(FeatureData* data) {
 	for (int f=0; f<data->getNumFeatures(); f++) {
 		updateBestSplits(data, f);
 	}
+	/*
+	for (int n = 0; n < nodes; n++) {
+		StaticNode* node = layers[layer][n];
+		cout << "------ " << node->split << " " << node->feature << endl;
+		cout << node->m_s << " " << node->l_s << " " << node->m_infty << " " << node->l_infty << endl;
+	}
+	*/
 }
 
 void StaticTree::updateBestSplits(FeatureData* data, int f) {
@@ -185,8 +192,16 @@ void StaticTree::updateBestSplits(FeatureData* data, int f) {
 		StaticNode* node = layers[layer][n];
 		node->m_s = 0;
 		node->l_s = 0.0;
+		node->s = 0.0;
 	}
 
+	
+	/*
+	for (int n = 0; n < nodes; n++) {
+		StaticNode* node = layers[layer][n];
+		node->m_s = data->getN() - (*data).sortedfeatures[f].size();
+	}
+	*/
 	bool* flag = new bool[(*data).getN()];
 
 	memset(flag, 1, sizeof(bool) * (*data).getN());
@@ -195,23 +210,16 @@ void StaticTree::updateBestSplits(FeatureData* data, int f) {
 		flag[(*data).sortedfeatures[f][ii].i_index] = false;
 
 	int ii = (*data).getN() - 1; 
+
 	// iterate over feature
-	
-	//cout << "HHH: " << endl;
-	//TOFIX : O(N) -> O(N-)
-	
-	//cout << "-------------------" << endl;
-	//cout << "AAAAAAAAAAAAA" << endl;
 	for (int j=0; j<data->getN(); j++) {
 		// get current value
 		float v = data->getSortedFeature(f,j);
+
+		if (v != 0)
+			break;
 		int i = data->getSortedIndex(f,j);
-	
-		//cout << "f: " << f << " j: " << j << endl;
-		if (i != -1) {
-			flag[i] = false;
-			//cout << "---: " << i << endl;
-		}
+		
 		if (i == -1) {
 			for (; ii >= 0; ii--) {
 				if (flag[ii]) {
@@ -220,21 +228,29 @@ void StaticTree::updateBestSplits(FeatureData* data, int f) {
 					break;
 				}	
 			}
-			//cout << "===: " << i << endl;
 		}
-		//i = 10;
+		
+		
 		int n = data->getNode(i);
 		
 		float l = data->getResidual(i);
-		//l = 0.01;
-
-		//cout << "info: " << v << " " << i << " " << n << " " << l << endl;
-		// cout << "n: " << n << endl;
-		// get node
+	
 		StaticNode* node = layers[layer][n];
 
-		//node->printNodes();
-		// if not first instance at node and greater than split point, consider new split at v
+		// update variables
+		node->m_s += 1;
+		node->l_s += l;	
+	}
+	
+	for (int j = 0; j < (*data).sortedfeatures[f].size(); j++) {
+		float v = (*data).sortedfeatures[f][j].value;
+		int i = (*data).sortedfeatures[f][j].i_index;
+
+		int n = data->getNode(i);
+
+		float l = data->getResidual(i);
+
+		StaticNode* node = layers[layer][n];
 		if (node->m_s > 0 and v > node->s) {
 			double loss_i = pow(node->l_s,2.0) / (double) node->m_s + pow(node->l_infty - node->l_s,2.0) / (double) (node->m_infty - node->m_s);
 
@@ -261,6 +277,7 @@ void StaticTree::updateBestSplits(FeatureData* data, int f) {
 		node->m_s += 1;
 		node->l_s += l;
 		node->s = v;
+
 	}
 
 	//cout << endl;
